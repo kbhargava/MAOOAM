@@ -1,0 +1,105 @@
+
+!  maooam.f90
+!
+!> Fortran 90 implementation of the modular arbitrary-order ocean-atmosphere 
+!> model MAOOAM.
+!
+!> @copyright                                                               
+!> 2015 Lesley De Cruz & Jonathan Demaeyer.
+!> See LICENSE.txt for license information.                                  
+!
+!---------------------------------------------------------------------------!
+
+PROGRAM maooam 
+  USE params, only: ndim, dt, tw, t_trans, t_run, writeout
+  USE aotensor_def, only: init_aotensor
+  USE IC_def, only: load_IC, IC
+  USE integrator, only: init_integrator,step
+  USE tl_ad_tensor, only: init_tltensor, init_adtensor
+  USE tl_ad_integrator, only: init_tl_ad_integrator, tl_step, ad_step
+  
+  IMPLICIT NONE
+
+  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: X       !< State variable in the model
+  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: Xnew    !< Updated state variable
+  REAL(KIND=8) :: t=0.D0                             !< Time variable
+  REAL(KIND=8) :: t_up
+
+  REAL(KIND=8), DIMENSION(:,:), ALLOCATABLE :: tlm
+  PRINT*, 'Model MAOOAM v1.2'
+  PRINT*, 'Loading information...'
+
+  CALL init_aotensor    ! Compute the tensor
+
+  CALL load_IC          ! Load the initial condition
+
+! Added by Kriti-----
+  CALL init_tltensor
+  CALL init_adtensor
+!---------------------
+
+  CALL init_integrator  ! Initialize the integrator
+
+! Added by Kriti-----
+  CALL init_tl_ad_integrator
+!---------------------
+
+  t_up=dt/t_trans*100.D0
+
+  ALLOCATE(X(0:ndim), Xnew(0:ndim),tlm(0:ndim,0:ndim))
+  IF (writeout) OPEN(10,file='evol_field_tlm.dat')
+  X=IC
+
+  PRINT*, 'Starting the transient time evolution...'
+
+  DO WHILE (t<t_trans)
+     CALL step(X,t,dt,Xnew)
+     X=Xnew
+     IF (mod(t/t_trans*100.D0,0.1)<t_up) WRITE(*,'(" Progress ",F6.1," %",A,$)') t/t_trans*100.D0,char(13)
+  END DO
+
+  PRINT*, 'Starting the time evolution...'
+
+  
+  t=0.D0
+
+  DO WHILE (t<t_run)
+     CALL tl_matrix_analytic(X,t,dt,int(tw/dt),tlm)
+     X=Xnew
+     print*,t
+     IF (writeout) WRITE(10,*) t,X(1:ndim), tlm(1:ndim,1:ndim)
+  END DO
+
+  PRINT*, 'Evolution finished.'
+
+  IF (writeout) CLOSE(10)
+
+END PROGRAM maooam
+
+SUBROUTINE tl_matrix_analytic(xctl,t,dt,nt,tlm)
+    USE params, ONLY: ndim
+    USE integrator, ONLY : step
+    USE tl_ad_integrator, only : tl_step
+    IMPLICIT NONE
+    REAL(8), INTENT(INOUT):: xctl (0:ndim),t
+    REAL(8), INTENT (IN) :: dt
+    INTEGER, INTENT (IN) :: nt
+    REAL(8), INTENT(OUT) :: tlm(0:ndim,0:ndim)
+    INTEGER ::i,j,k
+    REAL (8):: t_dummy =0.0, tmp(0:ndim)
+
+    tlm = 0.d0
+    do i=0,ndim
+        tlm(i,i) = 1.0d0
+    enddo
+
+    
+    do k = 1,nt
+       do j=0,ndim
+           CALL tl_step(tlm(:,j), xctl, t_dummy,dt, tmp(:))
+           tlm(:,j) = tmp(:)
+       end do
+       CALL step(xctl,t,dt,tmp)
+       xctl(:) = tmp(:)
+    enddo
+END SUBROUTINE tl_matrix_analytic    
