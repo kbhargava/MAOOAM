@@ -44,7 +44,7 @@ PROGRAM maooam
 
   t_up=dt/t_trans*100.D0
 
-  IF (writeout) OPEN(10,file='evol_field_tlm.dat')
+  IF (writeout) OPEN(10,file='evol_field_tlm_takuma_ic_2.dat')
 
   ALLOCATE(X(0:ndim),Xnew(0:ndim))
 
@@ -91,9 +91,11 @@ PROGRAM maooam
          DO i=0,ndim
             dy(i,i) = 1.0d0
          END DO
+         print*,"write",t
      END IF
-     IF (mod(t/t_run*100.D0,0.1)<t_up) WRITE(*,'(" Progress ",F6.1," %",A,$)') t/t_run*100.D0,char(13)
-  END DO
+!     IF (mod(t/t_run*100.D0,0.1)<t_up) WRITE(*,'(" Progress ",F6.1," %",A,$)') t/t_run*100.D0,char(13)
+ print*, t
+ END DO
 
   PRINT*, 'Evolution finished.'
   print*, Xnew

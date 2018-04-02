@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 import numpy as np
 import matplotlib as mpl
@@ -10,11 +10,12 @@ ndim =36
 oneday =8.64
 
 def main():
-    traj, tlm, tim = read_file("evol_field_tlm_120000.dat")
-
+    traj, tlm, tim = read_file("evol_field_tlm_takuma_ic_2.dat")
+    print("Loaded")
     dt = tim[1]-tim[0]
+    print(dt)
     tmax = len(tim)
-    rescale = np.int(2*dt)
+    rescale = 10
     
     lyap_sum =np.zeros(ndim)
     cnt = 0
@@ -28,22 +29,25 @@ def main():
             Q,R = LA.qr(M)
             M = Q
             rdiag=abs(np.diag(R))
-            lyap_sum =lyap_sum+np.log(rdiag)/(rescale/oneday)
+            lyap_sum =lyap_sum+np.log(rdiag)/(rescale*dt/oneday)
             cnt = cnt+1
     LE = lyap_sum/cnt
 #    S = np.dot(M.T,M)
 #    w,v = LA.eig(S)
 #    LE=np.log(abs(w))/(2*tmax/oneday)
+#    LE=np.sort(LE)
+#    print (LE)
+#    LE=np.flip(LE,axis=0)
     print (LE)
-    np.save('LE_120000.npy',LE)
+#    np.savetxt('LE_1200.txt',LE)
     plt.plot(LE)
-    plt.savefig("LE120000.png",dpi = 300)
+    plt.savefig("LE.png",dpi = 300)
 
 
 
-def read_file(file):
+def read_file(ifile):
     #return np.ndarray[time, ndim]
-    with open(file, "r") as f:
+    with open(ifile,"r") as f:
         ar = f.read().split()
     ar2 = []
     n = len(ar)
